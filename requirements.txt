@@ -1,0 +1,41 @@
+# Web Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Async HTTP Client
+aiohttp==3.9.1
+httpx==0.25.2
+
+# Database
+motor==3.3.2
+pymongo==4.6.0
+
+# Kafka
+aiokafka==0.8.11
+
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-mock==3.12.0
+httpx==0.25.2
+
+# Logging and Monitoring
+structlog==23.2.0
+prometheus-client==0.19.0
+
+# Development
+black==23.11.0
+isort==5.12.0
+flake8==6.1.0
+mypy==1.7.1
+
+# Environment Management
+python-dotenv==1.0.0
+
+# Date and Time
+python-dateutil==2.8.2
+
+# Utilities
+typing-extensions==4.8.0
