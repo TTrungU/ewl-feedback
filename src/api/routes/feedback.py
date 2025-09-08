@@ -70,6 +70,8 @@ def get_evaluate_submission_use_case() -> EvaluateSubmissionUseCase:
 # Router
 router = APIRouter(prefix="/feedback", tags=["feedback"])
 
+
+
 @router.get("/health", response_model=HealthResponse)
 async def health_check():
     """Health check endpoint"""
@@ -82,6 +84,22 @@ async def health_check():
             "kafka": "connected"
         }
     )
+
+
+@router.post("/evaluate", response_model=FeedbackResponse)
+async def evaluate_submission(
+    submission: Submission,
+    criteria: Optional[Dict[str, Any]] = None,
+    evaluate_use_case: EvaluateSubmissionUseCase = Depends(get_evaluate_submission_use_case)
+):
+    """Evaluate a submission and generate feedback"""
+    try:
+        feedback = await evaluate_use_case.execute(submission, criteria)
+        return _feedback_to_response(feedback)
+    except EvaluationError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.post("/", response_model=FeedbackResponse)
 async def create_feedback(

@@ -5,7 +5,7 @@ import aiohttp
 import asyncio
 from datetime import datetime
 
-from ...core.interfaces.llm_gateway import LLMGateway, LLMGatewayError, LLMServiceUnavailableError
+from ...core.interfaces.in_llm_gateway import LLMGateway, LLMGatewayError, LLMServiceUnavailableError
 from ...core.entities.feedback import Submission, Feedback, FeedbackStatus, SubmissionType,DetailedFeedback
 
 logger = logging.getLogger(__name__)
