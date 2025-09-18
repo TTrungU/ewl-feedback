@@ -4,9 +4,9 @@ from typing import Dict, Any, Optional
 import aiohttp
 import asyncio
 from datetime import datetime
-
+from openai import AsyncOpenAI
 from ...core.interfaces.in_llm_gateway import LLMGateway, LLMGatewayError, LLMServiceUnavailableError
-from ...core.entities.feedback import Submission, Feedback, FeedbackStatus, SubmissionType,DetailedFeedback
+from ...core.entities.feedback import ExamType, SkillType, Submission, Feedback, FeedbackStatus, SubmissionType,DetailedFeedback
 
 logger = logging.getLogger(__name__)
 
@@ -40,226 +40,72 @@ class HttpLLMGateway(LLMGateway):
     
     def _build_prompt(self, submission: Submission) -> str:
         """Build prompt for LLM based on submission type"""
-        
-        if submission.submission_type == SubmissionType.ESSAY:
+
+        if submission.skill_type == SkillType.WRITING:
+    
             return f"""
-You are an expert IELTS Writing examiner. Analyze the following essay and provide detailed feedback in the specified JSON format.
-
-Essay to evaluate:
+topic: {submission.topic}
 {submission.content}
-
-Please provide feedback following IELTS Writing Band Descriptors (0-9 scale) for these four criteria:
-1. Task Achievement (TA): How well the task is fulfilled
-2. Coherence and Cohesion (CC): Organization and linking of ideas
-3. Lexical Resource (LR): Vocabulary range and accuracy
-4. Grammatical Range and Accuracy (GRA): Grammar structures and accuracy
-
-For each sentence, provide:
-- Identification of errors and issues
-- Improved version of the sentence
-- Specific feedback for each criteria
-- Actionable suggestions for improvement
-
-Response format (JSON):
-{{
-  "overall_score": <average_score_out_of_9>,
-  "task_achievement": {{
-    "score": <score_0_to_9>,
-    "comments": "<detailed_assessment>",
-    "suggestions": ["<specific_suggestion_1>", "<specific_suggestion_2>"]
-  }},
-  "coherence_cohesion": {{
-    "score": <score_0_to_9>,
-    "comments": "<detailed_assessment>",
-    "suggestions": ["<specific_suggestion_1>", "<specific_suggestion_2>"]
-  }},
-  "lexical_resource": {{
-    "score": <score_0_to_9>,
-    "comments": "<detailed_assessment>",
-    "suggestions": ["<specific_suggestion_1>", "<specific_suggestion_2>"]
-  }},
-  "grammatical_range_accuracy": {{
-    "score": <score_0_to_9>,
-    "comments": "<detailed_assessment>",
-    "suggestions": ["<specific_suggestion_1>", "<specific_suggestion_2>"]
-  }},
-  "sentence_feedback": [
-    {{
-      "sentence_id": "sent_001",
-      "text": "<original_sentence>",
-      "improved_text": "<corrected_sentence>",
-      "feedback_details": {{
-        "task_achievement": {{
-          "comments": "<sentence_level_TA_feedback>",
-          "suggestions": ["<specific_improvement>"]
-        }},
-        "coherence_cohesion": {{
-          "comments": "<sentence_level_CC_feedback>",
-          "suggestions": ["<specific_improvement>"]
-        }},
-        "lexical_resource": {{
-          "comments": "<sentence_level_LR_feedback>",
-          "suggestions": ["<specific_improvement>"]
-        }},
-        "grammatical_range_accuracy": {{
-          "comments": "<sentence_level_GRA_feedback>",
-          "suggestions": ["<specific_improvement>"]
-        }}
-      }}
-    }}
-  ]
-}}
-
-Provide constructive, specific feedback that helps the student improve their writing skills.
-            """
-        
-        elif submission.submission_type == SubmissionType.CODE:
-            return f"""
-You are an expert code reviewer. Analyze the following code submission and provide detailed feedback.
-
-Code to evaluate:
-```
-{submission.content}
-```
-
-Please evaluate the code based on these criteria:
-1. Task Achievement: Does the code solve the intended problem?
-2. Code Structure: Is the code well-organized and readable?
-3. Best Practices: Does it follow coding conventions and best practices?
-4. Error Handling: Are potential errors properly handled?
-
-Provide feedback in this JSON format:
-{{
-  "overall_score": <score_out_of_10>,
-  "task_achievement": {{
-    "score": <score_out_of_10>,
-    "comments": "<assessment_of_functionality>",
-    "suggestions": ["<improvement_suggestion>"]
-  }},
-  "coherence_cohesion": {{
-    "score": <score_out_of_10>,
-    "comments": "<assessment_of_code_structure>",
-    "suggestions": ["<structural_improvement>"]
-  }},
-  "lexical_resource": {{
-    "score": <score_out_of_10>,
-    "comments": "<assessment_of_variable_naming_and_clarity>",
-    "suggestions": ["<naming_improvement>"]
-  }},
-  "grammatical_range_accuracy": {{
-    "score": <score_out_of_10>,
-    "comments": "<assessment_of_syntax_and_best_practices>",
-    "suggestions": ["<syntax_improvement>"]
-  }},
-  "sentence_feedback": [
-    {{
-      "sentence_id": "line_001",
-      "text": "<original_code_line>",
-      "improved_text": "<improved_code_line>",
-      "feedback_details": {{
-        "task_achievement": {{"comments": "<line_level_functionality>", "suggestions": ["<improvement>"]}},
-        "coherence_cohesion": {{"comments": "<line_level_structure>", "suggestions": ["<improvement>"]}},
-        "lexical_resource": {{"comments": "<line_level_clarity>", "suggestions": ["<improvement>"]}},
-        "grammatical_range_accuracy": {{"comments": "<line_level_syntax>", "suggestions": ["<improvement>"]}}
-      }}
-    }}
-  ]
-}}
             """
         
         else:  # Default for other submission types
             return f"""
 Analyze this {submission.submission_type.value} submission and provide detailed feedback:
 
+Topic: {submission.topic}
 Content:
 {submission.content}
-
-Provide structured feedback in JSON format with overall scores and detailed sentence-level analysis.
-Format your response as a JSON object with overall scores, criteria-based assessment, and sentence-by-sentence feedback.
             """
     
     async def generate_feedback(self, submission: Submission) -> Feedback:
         """Generate feedback for a submission using LLM"""
         try:
-            session = await self._get_session()
-            
-            # Build the request payload
-            payload = {
-                "model": "gpt-3.5-turbo",  # or configurable model
-                "messages": [
+            completion = await self.client.responses.parse(
+                model="gpt-5",  
+                input=[
                     {
                         "role": "system",
-                        "content": "You are an expert evaluator providing constructive feedback on student submissions. Always provide specific, actionable suggestions."
+                        "content": self._system_prompt_essay_IELTS_writing_task_2()
+                        if submission.submission_type == SubmissionType.ESSAY else ""
                     },
                     {
                         "role": "user",
                         "content": self._build_prompt(submission)
                     }
                 ],
-                "temperature": 0.7,
-                "max_tokens": 1000
-            }
+                response_format=DetailedFeedback,
+            )
+
+            if completion.refusal:
+                raise LLMGatewayError(f"Model refused: {completion.refusal}")
             
-            # Make the API call
-            async with session.post(f"{self.base_url}/chat/completions", json=payload) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    return self._parse_llm_response(data, submission)
-                elif response.status == 429:
-                    raise LLMServiceUnavailableError("Rate limit exceeded")
-                elif response.status >= 500:
-                    raise LLMServiceUnavailableError("LLM service temporarily unavailable")
-                else:
-                    error_text = await response.text()
-                    raise LLMGatewayError(f"API request failed: {response.status} - {error_text}")
-                    
-        except aiohttp.ClientError as e:
-            logger.error(f"HTTP client error: {str(e)}")
-            raise LLMServiceUnavailableError(f"Network error: {str(e)}")
-        except asyncio.TimeoutError:
-            logger.error("Request timeout")
-            raise LLMServiceUnavailableError("Request timeout")
-        except Exception as e:
-            logger.error(f"Unexpected error: {str(e)}")
-            raise LLMGatewayError(f"Unexpected error: {str(e)}")
-    
-    def _parse_llm_response(self, response_data: Dict[str, Any], submission: Submission) -> Feedback:
-        """Parse LLM response and create Feedback entity"""
-        try:
-            # Extract the generated text
-            content = response_data["choices"][0]["message"]["content"]
-            
-            # Parse JSON response from LLM
-            try:
-                feedback_json = json.loads(content)
-                detailed_feedback = self._parse_detailed_feedback(feedback_json)
-            except json.JSONDecodeError:
-                # Fallback: create basic feedback if JSON parsing fails
-                logger.warning("Failed to parse JSON from LLM response, creating basic feedback")
-                detailed_feedback = self._create_fallback_feedback(content)
-            
+            detailed_feedback = completion.output_parsed
+
             return Feedback(
                 submission_id=submission.id,
                 user_id=submission.user_id,
+                skill_type=submission.skill_type,
+                exam_type=submission.exam_type,
+                assignment_id=submission.assignment_id,
+                topic=submission.topic,
+                task_number=submission.task_number,
                 generated_at=datetime.utcnow(),
-                llm_model=response_data.get("model", "unknown"),
+                llm_model=completion.model or "unknown",
                 feedback=detailed_feedback,
-                raw_llm_output=content,
-                processing_time=response_data.get("usage", {}).get("total_tokens", 0) / 1000.0,  # Rough estimation
+                processing_time=(completion.usage.total_tokens / 1000.0) if completion.usage else 0,
                 status=FeedbackStatus.COMPLETED,
                 metadata={
-                    "tokens_used": response_data.get("usage", {}).get("total_tokens", 0),
+                    "tokens_used": completion.usage.total_tokens if completion.usage else 0,
                     "submission_type": submission.submission_type.value,
-                    "confidence_score": 0.85  # Default confidence
+                    "confidence_score": 0.85
                 }
             )
-            
-        except KeyError as e:
-            logger.error(f"Failed to parse LLM response: missing key {str(e)}")
-            raise LLMGatewayError(f"Invalid response format: missing {str(e)}")
+
+        except LLMServiceUnavailableError:
+            raise
         except Exception as e:
-            logger.error(f"Failed to parse LLM response: {str(e)}")
-            raise LLMGatewayError(f"Response parsing error: {str(e)}")
+            logger.error(f"Unexpected error in generate_feedback: {str(e)}")
+            raise LLMGatewayError(f"Unexpected error: {str(e)}")
     
     def _parse_detailed_feedback(self, feedback_json: Dict[str, Any]) -> DetailedFeedback:
         """Parse JSON feedback into DetailedFeedback entity"""
@@ -370,7 +216,7 @@ Format your response as a JSON object with overall scores, criteria-based assess
                 "max_tokens": 800
             }
             
-            async with session.post(f"{self.base_url}/chat/completions", json=payload) as response:
+            async with session.post(f"{self.base_url}/response", json=payload) as response:
                 if response.status == 200:
                     data = await response.json()
                     content = data["choices"][0]["message"]["content"]
@@ -435,3 +281,13 @@ Provide analysis in JSON format with the following structure:
         except Exception as e:
             logger.error(f"Health check failed: {str(e)}")
             return False
+
+    def _system_prompt_essay_IELTS_writing_task_2(self) -> str:
+        return """
+You are an IELTS examiner. Evaluate essays strictly by IELTS Writing Task 2 band descriptors.
+Providing general feedback: overall score,task achievement : how well task is fulfilled,coherence cohesion: how ideas are organized and linked,lexical resource: vocabulary range and accuracy,grammatical range accuracy: grammar structures and accuracy for essay. 
+Feedback for each sentence follow that all criteria, help student improve their writing by provide improved version  and explain why it improves.
+
+"""
+
+
