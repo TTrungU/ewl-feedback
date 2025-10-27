@@ -41,6 +41,12 @@ class EvaluateSubmissionUseCase:
         feedback = Feedback(
             submission_id=submission.id or uuid4(),
             user_id=submission.user_id,
+            topic=submission.topic,
+            content=submission.content,
+            assignment_id=submission.assignment_id,
+            skill_type=submission.skill_type,
+            exam_type=submission.exam_type,
+            task_number=submission.task_number,
             status=FeedbackStatus.PROCESSING,
             metadata={"submission_type": submission.submission_type.value}
         )
@@ -54,11 +60,7 @@ class EvaluateSubmissionUseCase:
             generated_feedback = await self.llm_gateway.generate_feedback(submission)
             
             # Update feedback with generated content
-            feedback.content = generated_feedback.content
-            feedback.score = generated_feedback.score
-            feedback.suggestions = generated_feedback.suggestions
-            feedback.strengths = generated_feedback.strengths
-            feedback.weaknesses = generated_feedback.weaknesses
+            feedback.feedback = generated_feedback.feedback
             feedback.update_status(FeedbackStatus.COMPLETED)
             
             # Save completed feedback

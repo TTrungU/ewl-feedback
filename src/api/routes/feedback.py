@@ -175,7 +175,7 @@ async def get_user_feedback(
         
         return FeedbackListResponse(
             feedbacks=feedback_responses,
-            total=len(feedbacks),  # In a real app, you'd get the total count separately
+            total=len(feedbacks),  
             page=page,
             limit=limit
         )
