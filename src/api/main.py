@@ -121,7 +121,6 @@ async def handle_submission_message(submission):
 
 
 async def cleanup_dependencies():
-    """Cleanup all dependencies"""
     global mongo_client, llm_gateway, consumer_manager, producer_manager
     
     try:
