@@ -1,5 +1,6 @@
 import logging
 from typing import Dict, Any, Optional
+from uuid import uuid4
 from ..entities.feedback import Submission, Feedback, FeedbackStatus
 from ..interfaces.in_feedback_repository import FeedbackRepository
 from ..interfaces.in_llm_gateway import LLMGateway, LLMGatewayError
@@ -13,7 +14,7 @@ class EvaluateSubmissionUseCase:
     def __init__(self, feedback_repository: FeedbackRepository, llm_gateway: LLMGateway):
         self.feedback_repository = feedback_repository
         self.llm_gateway = llm_gateway
-    
+
     async def execute(self, submission: Submission, criteria: Optional[Dict[str, Any]] = None) -> Feedback:
         """
         Execute the evaluation process for a submission
@@ -38,8 +39,14 @@ class EvaluateSubmissionUseCase:
         
         # Create initial feedback record
         feedback = Feedback(
-            submission_id=submission.id,
+            submission_id=submission.id or uuid4(),
             user_id=submission.user_id,
+            topic=submission.topic,
+            content=submission.content,
+            assignment_id=submission.assignment_id,
+            skill_type=submission.skill_type,
+            exam_type=submission.exam_type,
+            task_number=submission.task_number,
             status=FeedbackStatus.PROCESSING,
             metadata={"submission_type": submission.submission_type.value}
         )
@@ -53,11 +60,7 @@ class EvaluateSubmissionUseCase:
             generated_feedback = await self.llm_gateway.generate_feedback(submission)
             
             # Update feedback with generated content
-            feedback.content = generated_feedback.content
-            feedback.score = generated_feedback.score
-            feedback.suggestions = generated_feedback.suggestions
-            feedback.strengths = generated_feedback.strengths
-            feedback.weaknesses = generated_feedback.weaknesses
+            feedback.feedback = generated_feedback.feedback
             feedback.update_status(FeedbackStatus.COMPLETED)
             
             # Save completed feedback
@@ -79,8 +82,7 @@ class EvaluateSubmissionUseCase:
             feedback.metadata["error"] = str(e)
             await self.feedback_repository.save(feedback)
             raise EvaluationError(f"Unexpected error during evaluation: {str(e)}")
-
-
+        
 class EvaluationError(Exception):
     """Exception raised when evaluation fails"""
     pass

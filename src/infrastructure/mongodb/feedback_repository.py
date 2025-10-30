@@ -5,7 +5,7 @@ from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorCollection
 from pymongo import IndexModel, ASCENDING, DESCENDING
 from pymongo.errors import DuplicateKeyError, PyMongoError
 
-from ...core.interfaces.feedback_repository import FeedbackRepository
+from ...core.interfaces.in_feedback_repository import FeedbackRepository
 from ...core.entities.feedback import Feedback, FeedbackStatus
 
 logger = logging.getLogger(__name__)

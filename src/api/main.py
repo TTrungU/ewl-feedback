@@ -273,3 +273,6 @@ if __name__ == "__main__":
         reload=settings.debug,
         log_level="info"
     )
+
+
+# uvicorn src.api.main:app --reload

@@ -1,6 +1,7 @@
 
 import json
 import asyncio
+import logging
 from typing import Dict, Any, Optional
 from aiokafka import AIOKafkaProducer
 from aiokafka.errors import KafkaError
@@ -35,11 +36,10 @@ class KafkaFeedbackProducer:
                 value_serializer=self._serialize_message,
                 key_serializer=lambda k: k.encode('utf-8') if k else None,
                 retry_backoff_ms=self.retry_backoff_ms,
-                max_block_ms=30000,  # 30 seconds max blocking
-                request_timeout_ms=30000,
-                acks='all',  # Wait for all replicas to acknowledge
-                enable_idempotence=True,  # Ensure exactly-once semantics
-                max_in_flight_requests_per_connection=1
+                request_timeout_ms=30000,  # keep this if you want timeout
+                linger_ms=5,               # safe to use
+                acks="all",                # safe to use
+                compression_type="gzip"    # safe to use
             )
             
             await self.producer.start()
