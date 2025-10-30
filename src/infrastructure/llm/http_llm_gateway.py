@@ -263,24 +263,6 @@ Provide analysis in JSON format with the following structure:
         
         return base_prompt
     
-    async def is_healthy(self) -> bool:
-        """Check if LLM service is healthy"""
-        try:
-            session = await self._get_session()
-            
-            # Simple health check payload
-            payload = {
-                "model": "gpt-3.5-turbo",
-                "messages": [{"role": "user", "content": "Hello"}],
-                "max_tokens": 5
-            }
-            
-            async with session.post(f"{self.base_url}/chat/completions", json=payload) as response:
-                return response.status == 200
-                
-        except Exception as e:
-            logger.error(f"Health check failed: {str(e)}")
-            return False
 
     def _system_prompt_essay_IELTS_writing_task_2(self) -> str:
         return """
